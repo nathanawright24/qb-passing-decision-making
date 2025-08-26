@@ -30,7 +30,6 @@ passfiltered <- passes %>%
     qb_epa, xyac_epa, xpass, pass_oe, xyac_mean_yardage 
   )
 participation <- load_participation(2021:2024)
-library(dplyr)
 
 passes_with_routes <- passfiltered %>%
   left_join(
@@ -168,3 +167,26 @@ passes_model <- passes_model %>%
     xTD = ifelse(xendyardline_100 == 0, 1, 0),
     first_down_flag = ifelse(is.na(first_down_flag), 1, first_down_flag)
   )
+
+colSums(is.na(passes_model))
+print_na_air_yards <- function(df) {
+  na_rows <- df %>% filter(is.na(air_yards)) %>% select(game_id, play_id)
+  print(na_rows)
+}
+print_na_air_yards(passes_model)
+# Two NA air yards throws, cross reference game and play ids to determine events of play
+impute_air_yards <- function(df, game_id_val, play_id_val, new_air_yards) {
+  df %>%
+    mutate(air_yards = ifelse(game_id == game_id_val & play_id == play_id_val,
+                              new_air_yards, air_yards))
+}
+
+# Impute 2-yard TD throw
+passes_model <- impute_air_yards(passes_model, "2021_02_NO_CAR", 1558, 2)
+
+# Impute sack/aborted throw as 0 air yards
+passes_model <- impute_air_yards(passes_model, "2023_04_CIN_TEN", 905, 0)
+
+#-------------------------------
+library(caret)
+set.seed(42)
