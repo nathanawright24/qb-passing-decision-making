@@ -5,10 +5,12 @@ install.packages("caret")
 install.packages("nflplotR")
 install.packages("gt")
 install.packages("gtExtras")
+install.packages("tidyr")
 library(nflreadr)
 library(nflfastR)
 library(dplyr)
 library(sportyR)
+library(tidyr)
 seasons <- list(2021, 2022, 2023, 2024)
 pbpdata <- load_pbp(2021:2024)
 #-----------------------------------------
@@ -95,48 +97,6 @@ cpoe_summary <- passes_clean %>%
 
 cpoe_summary <- cpoe_summary %>%
   mutate(qb_cpoe = qb_cpoe / 100)
-
-#-----------------------------------------------------
-install.packages("ggplot2")
-library(ggplot2)
-library(scales)
-
-allen_cover3 <- cpoe_summary %>%
-  filter(passer_player_name == "J.Allen",
-         defense_coverage_type == "COVER_3") %>%
-  mutate(depth_bucket = factor(depth_bucket, levels = c("behind", "short", "intermediate", "deep")))
-
-field_background <- data.frame(
-  ymin = 0:3,
-  ymax = 1:4
-)
-
-ggplot() +
-  geom_rect(data = field_background,
-            aes(xmin = 0, xmax = 4, ymin = ymin, ymax = ymax),
-            fill = c("#006400", "#008000", "#006400", "#008000"),
-            color = NA) +
-  geom_tile(data = allen_cover3,
-            aes(x = as.numeric(factor(pass_location)),
-                y = as.numeric(depth_bucket)-1 + 0.5,
-                fill = qb_cpoe),
-            color = "white") +
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0,
-                       name = "CPOE") +
-  geom_text(data = allen_cover3,
-            aes(x = as.numeric(factor(pass_location)),
-                y = as.numeric(depth_bucket)-1 + 0.5,
-                label = round(qb_cpoe,2)),
-            size = 4) +
-  scale_x_continuous(breaks = 1:3, labels = c("Left", "Middle", "Right")) +
-  scale_y_continuous(breaks = 1:4, labels = c("behind","short","intermediate","deep")) +
-  labs(title = "Josh Allen CPOE vs Cover 3 by Location and Depth") +
-  theme_minimal() +
-  theme(
-    axis.title = element_blank(),
-    panel.grid = element_blank(),
-    axis.text = element_text(face = "bold")
-  )
 
 #-----------------------------------------------------------------------
 passes_qbxcp <- passes_clean %>%
@@ -236,7 +196,8 @@ passes_qbxcp <- passes_qbxcp %>%
   mutate(wepa = xepa * qbxcp)
 
 #--------------------------------------------
-# Visualization
+#--------------- Summarization --------------
+#--------------------------------------------
 library(ggplot2)
 
 ggplot(passes_qbxcp, aes(x = xepa, y = epa)) +
@@ -403,6 +364,9 @@ qb_career_table <- qb_career_ranked %>%
 
 qb_career_table
 
+#------------------------------------------------------------
+#----------------------- Visualization ----------------------
+#------------------------------------------------------------
 library(dplyr)
 library(gt)
 library(gtExtras)
@@ -602,7 +566,6 @@ ggplot(qbxcp_top5, aes(x = qbxcp, fill = passer_player_name, color = passer_play
 install.packages("showtext")
 library(showtext)
 
-# Load Google font
 font_add_google("Roboto Condensed", "roboto")
 showtext_auto()
 
@@ -646,9 +609,7 @@ qbxcp_top5 <- qbxcp_top5 %>%
 
 qbxcp_compare <- bind_rows(qbxcp_top5, qbxcp_bottom5)
 
-# ---------------------------
-# 1. Faceted version (stacked panels)
-# ---------------------------
+#Faceted version (stacked panels)
 p_facet <- ggplot(qbxcp_compare, aes(x = qbxcp, fill = passer_player_name, color = passer_player_name)) +
   geom_density(alpha = 0.3, size = 1) +
   scale_fill_manual(values = setNames(qbxcp_compare$team_color, qbxcp_compare$passer_player_name)) +
@@ -667,10 +628,7 @@ p_facet <- ggplot(qbxcp_compare, aes(x = qbxcp, fill = passer_player_name, color
     legend.title = element_blank()
   )
 
-
-# ---------------------------
-# 2. Overlay version (all in one)
-# ---------------------------
+#Overlay version (all in one)
 p_overlay <- ggplot(qbxcp_compare, aes(x = qbxcp, fill = passer_player_name, color = passer_player_name, linetype = group)) +
   geom_density(alpha = 0.25, size = 1) +
   scale_fill_manual(values = setNames(qbxcp_compare$team_color, qbxcp_compare$passer_player_name)) +
@@ -732,4 +690,388 @@ plot_qb_scatter_logo(qb_summary_2024_ranked, "xwepa_per_attempt", "epa_per_attem
                      "xWEPA/Attempt", "EPA/Attempt")
 plot_qb_scatter_logo(qb_summary_2024_ranked, "raw_wepa_per_attempt", "epa_per_attempt",
                      "WEPA/Attempt", "EPA/Attempt")
+
+ggsave(
+  filename = "C:/Users/NathanielWright/OneDrive - IMG Academy/Documents/Projects/Football/qb_scatter_xwepa_vs_wepa.png",
+  plot = plot_qb_scatter_logo(qb_summary_2024_ranked, "xwepa_per_attempt", "raw_wepa_per_attempt",
+                              "xWEPA/Attempt", "WEPA/Attempt"),
+  width = 8,
+  height = 6,
+  dpi = 300
+)
+
+ggsave(
+  filename = "C:/Users/NathanielWright/OneDrive - IMG Academy/Documents/Projects/Football/qb_scatter_xwepa_vs_epa.png",
+  plot = plot_qb_scatter_logo(qb_summary_2024_ranked, "xwepa_per_attempt", "epa_per_attempt",
+                              "xWEPA/Attempt", "EPA/Attempt"),
+  width = 8,
+  height = 6,
+  dpi = 300
+)
+
+ggsave(
+  filename = "C:/Users/NathanielWright/OneDrive - IMG Academy/Documents/Projects/Football/qb_scatter_wepa_vs_epa.png",
+  plot = plot_qb_scatter_logo(qb_summary_2024_ranked, "raw_wepa_per_attempt", "epa_per_attempt",
+                              "WEPA/Attempt", "EPA/Attempt"),
+  width = 8,
+  height = 6,
+  dpi = 300
+)
+
 #------------------------------------------------------------
+library(sportyR)
+library(dplyr)
+library(ggplot2)
+
+lamar_cpoe <- cpoe_summary %>%
+  filter(passer_player_name == "L.Jackson", defense_coverage_type == "Cover 3") %>%
+  group_by(pass_location, depth_bucket) %>%
+  summarise(CPOE = mean(qb_cpoe, na.rm = TRUE), attempts = n(), .groups = "drop")
+
+library(ggplot2)
+library(dplyr)
+
+lamar_cpoe <- lamar_cpoe %>%
+  mutate(
+    x = case_when(
+      pass_location == "Left" ~ 20,
+      pass_location == "Middle" ~ 60,
+      pass_location == "Right" ~ 100
+    ),
+    y = case_when(
+      depth_bucket == "Shallow" ~ 10,
+      depth_bucket == "Intermediate" ~ 27,
+      depth_bucket == "Deep" ~ 45
+    )
+  )
+
+p <- ggplot(lamar_cpoe, aes(x = x, y = y, fill = CPOE)) +
+  geom_tile(width = 15, height = 15, color = NA, alpha = 0.7) +
+  scale_fill_gradient2(low = "red", mid = "white", high = "green", midpoint = 0) +
+  theme_void() + 
+  theme(
+    panel.background = element_rect(fill = "transparent", color = NA),
+    plot.background = element_rect(fill = "transparent", color = NA),
+    legend.background = element_rect(fill = "transparent", color = NA),
+    legend.key = element_rect(fill = "transparent", color = NA)
+  )
+
+ggsave("lamar_heatmap.png", p, bg = "transparent", width = 6, height = 3.5, dpi = 300)
+
+#----------------------------------------------
+#-------------- Stress Testing ----------------
+#----------------------------------------------
+# Generating W/L and ppg
+dplyr::glimpse(passes_qbxcp)
+pbpdata_small <- pbpdata %>%
+  select(
+    play_id,
+    game_id,
+    season_type,
+    season,
+    week,
+    home_team,
+    away_team,
+    posteam,
+    defteam,
+    passer_player_id,
+    passer_player_name,
+    home_score,
+    away_score,
+    result
+  )
+dplyr::glimpse(pbpdata_small)
+#----
+games_qb <- pbpdata %>%
+  group_by(game_id) %>%
+  slice_tail(n = 1) %>%
+  ungroup() %>%
+  select(game_id, season_type, week, home_team, away_team,
+         home_score, away_score, result)
+
+qbs <- pbpdata %>%
+  filter(!is.na(passer_player_id)) %>%
+  group_by(game_id, posteam, passer_player_id, passer_player_name) %>%
+  summarise(pass_attempts = n(), .groups = "drop") %>%
+  arrange(game_id, posteam, desc(pass_attempts)) %>%
+  group_by(game_id, posteam) %>%
+  slice_max(order_by = pass_attempts, n = 1, with_ties = FALSE) %>% 
+  ungroup()
+
+qbs_wide <- qbs %>%
+  pivot_wider(
+    id_cols = game_id,
+    names_from = posteam,
+    values_from = c(passer_player_id, passer_player_name),
+    names_glue = "{posteam}_{.value}"
+  )
+
+games_full <- games_qb %>%
+  left_join(qbs_wide, by = "game_id") %>%
+  rowwise() %>%
+  mutate(
+    home_passer_id = get(paste0(home_team, "_passer_player_id")),
+    away_passer_id = get(paste0(away_team, "_passer_player_id")),
+    home_passer_name = get(paste0(home_team, "_passer_player_name")),
+    away_passer_name = get(paste0(away_team, "_passer_player_name")),
+    winning_player_id = case_when(
+      home_score > away_score ~ home_passer_id,
+      away_score > home_score ~ away_passer_id,
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  ungroup()
+
+games_qb <- games_full %>%
+  mutate(
+    winner_passer_id = case_when(
+      home_score > away_score ~ home_passer_id,
+      away_score > home_score ~ away_passer_id,
+      TRUE ~ NA_character_
+    ),
+    winner_passer_name = case_when(
+      home_score > away_score ~ home_passer_name,
+      away_score > home_score ~ away_passer_name,
+      TRUE ~ NA_character_
+    )
+  )
+
+#--------------------------------
+# Generating year over year xwepa
+qb_summary_season <- passes_qbxcp %>%
+  group_by(season, passer_player_id, passer_player_name, posteam) %>%
+  summarise(total_attempts_team = n(), .groups = "drop") %>%
+  group_by(season, passer_player_id) %>%
+  filter(total_attempts_team == max(total_attempts_team)) %>%
+  slice(1) %>%
+  rename(team = posteam) %>%
+  select(season, passer_player_id, team) %>%
+  right_join(
+    passes_qbxcp %>%
+      group_by(season, passer_player_id, passer_player_name) %>%
+      summarise(
+        total_attempts = n(),
+        total_xwepa = sum(xepa * qbxcp, na.rm = TRUE),
+        xwepa_per_attempt = mean(xepa * qbxcp, na.rm = TRUE),
+        total_raw_wepa = sum(epa * qbxcp, na.rm = TRUE),
+        raw_wepa_per_attempt = mean(epa * qbxcp, na.rm = TRUE),
+        total_epa = sum(epa, na.rm = TRUE),
+        epa_per_attempt = mean(epa, na.rm = TRUE),
+        .groups = "drop"
+      ),
+    by = c("season", "passer_player_id")
+  ) %>%
+  filter(total_attempts >= 238) %>%
+  group_by(season) %>%
+  mutate(
+    boost_xwepa_vs_epa = xwepa_per_attempt - epa_per_attempt,
+    boost_xwepa_vs_rawwepa = xwepa_per_attempt - raw_wepa_per_attempt,
+    boost_rawwepa_vs_epa = raw_wepa_per_attempt - epa_per_attempt,
+    rank_xwepa = min_rank(desc(as.numeric(xwepa_per_attempt))),
+    rank_rawwepa = min_rank(desc(as.numeric(raw_wepa_per_attempt))),
+    rank_epa = min_rank(desc(as.numeric(epa_per_attempt))),
+    rank_boost_xwepa_vs_epa = min_rank(desc(as.numeric(boost_xwepa_vs_epa))),
+    rank_boost_xwepa_vs_rawwepa = min_rank(desc(as.numeric(boost_xwepa_vs_rawwepa))),
+    rank_boost_rawwepa_vs_epa = min_rank(desc(as.numeric(boost_rawwepa_vs_epa))),
+    consensus_rank = min_rank(
+      rowMeans(cbind(
+        as.numeric(rank_xwepa),
+        as.numeric(rank_rawwepa),
+        as.numeric(rank_epa)
+      ), na.rm = TRUE)
+    )
+  ) %>%
+  ungroup() %>%
+  arrange(season, consensus_rank)
+
+#-----------------------------
+games_qb <- games_qb %>%
+  mutate(season = as.integer(substr(game_id, 1, 4)))
+
+games_qb <- games_qb %>%
+  left_join(
+    qb_summary_season %>%
+      select(season, passer_player_id,
+             epa_per_attempt, raw_wepa_per_attempt, xwepa_per_attempt),
+    by = c("season", "home_passer_id" = "passer_player_id")
+  ) %>%
+  rename(
+    home_epa_per_attempt = epa_per_attempt,
+    home_raw_wepa_per_attempt = raw_wepa_per_attempt,
+    home_xwepa_per_attempt = xwepa_per_attempt
+  ) %>%
+  left_join(
+    qb_summary_season %>%
+      select(season, passer_player_id,
+             epa_per_attempt, raw_wepa_per_attempt, xwepa_per_attempt),
+    by = c("season", "away_passer_id" = "passer_player_id")
+  ) %>%
+  rename(
+    away_epa_per_attempt = epa_per_attempt,
+    away_raw_wepa_per_attempt = raw_wepa_per_attempt,
+    away_xwepa_per_attempt = xwepa_per_attempt
+  )
+#------------------------------------
+# Modeling Wins
+dplyr::glimpse(games_qb)
+qb_game_compare <- games_qb %>%
+  filter(!is.na(home_epa_per_attempt) & !is.na(away_epa_per_attempt)) %>%
+  mutate(
+    epa_winner_id = ifelse(home_epa_per_attempt > away_epa_per_attempt, home_passer_id,
+                           ifelse(away_epa_per_attempt > home_epa_per_attempt, away_passer_id, NA_character_)),
+    rawwepa_winner_id = ifelse(home_raw_wepa_per_attempt > away_raw_wepa_per_attempt, home_passer_id,
+                               ifelse(away_raw_wepa_per_attempt > home_raw_wepa_per_attempt, away_passer_id, NA_character_)),
+    xwepa_winner_id = ifelse(home_xwepa_per_attempt > away_xwepa_per_attempt, home_passer_id,
+                             ifelse(away_xwepa_per_attempt > home_xwepa_per_attempt, away_passer_id, NA_character_)),
+    epa_winner_won = epa_winner_id == winning_player_id,
+    rawwepa_winner_won = rawwepa_winner_id == winning_player_id,
+    xwepa_winner_won = xwepa_winner_id == winning_player_id
+  ) %>%
+  select(game_id, season, week, home_team, away_team, home_passer_id, away_passer_id,
+         home_epa_per_attempt, away_epa_per_attempt,
+         home_raw_wepa_per_attempt, away_raw_wepa_per_attempt,
+         home_xwepa_per_attempt, away_xwepa_per_attempt,
+         epa_winner_id, rawwepa_winner_id, xwepa_winner_id,
+         epa_winner_won, rawwepa_winner_won, xwepa_winner_won)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# ---- Prepare long format for plotting ----
+qb_win_plot <- qb_game_compare %>%
+  pivot_longer(
+    cols = c(epa_winner_won, rawwepa_winner_won, xwepa_winner_won),
+    names_to = "metric",
+    values_to = "winner_won"
+  )
+
+# ---- Chart 1: Overall win rate by metric ----
+overall_win_rate <- qb_win_plot %>%
+  group_by(metric) %>%
+  summarise(win_rate = mean(winner_won, na.rm = TRUE))
+
+ggplot(overall_win_rate, aes(x = metric, y = win_rate, fill = metric)) +
+  geom_col() +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(
+    title = "Win Rate of QB with Higher Stat per Game",
+    x = "Metric",
+    y = "Win Rate",
+    fill = "Metric"
+  ) +
+  theme_minimal()
+
+# ---- Chart 2: Win rate by season ----
+season_win_rate <- qb_win_plot %>%
+  group_by(season, metric) %>%
+  summarise(win_rate = mean(winner_won, na.rm = TRUE), .groups = "drop")
+
+ggplot(season_win_rate, aes(x = factor(season), y = win_rate, color = metric, group = metric)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(
+    title = "Seasonal Win Rate of QB with Higher Stat",
+    x = "Season",
+    y = "Win Rate",
+    color = "Metric"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(showtext)
+
+font_add_google("Roboto", "roboto")
+showtext_auto()
+
+qb_win_plot <- qb_game_compare %>%
+  pivot_longer(
+    cols = c(epa_winner_won, rawwepa_winner_won, xwepa_winner_won),
+    names_to = "metric",
+    values_to = "winner_won"
+  ) %>%
+  mutate(
+    metric = case_when(
+      metric == "epa_winner_won" ~ "EPA",
+      metric == "rawwepa_winner_won" ~ "Raw WEPA",
+      metric == "xwepa_winner_won" ~ "xWEPA"
+    )
+  )
+
+season_win_rate <- qb_win_plot %>%
+  group_by(season, metric) %>%
+  summarise(win_rate = mean(winner_won, na.rm = TRUE), .groups = "drop")
+
+ggplot(season_win_rate, aes(x = factor(season), y = win_rate, fill = metric)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_fill_manual(values = c("EPA" = "#1f77b4", "Raw WEPA" = "#ff7f0e", "xWEPA" = "#2ca02c")) +
+  labs(
+    title = "Win Rate of QB with Higher Stat by Season",
+    x = "Season",
+    y = "Win Rate",
+    fill = "Stat Metric"
+  ) +
+  theme_minimal(base_family = "roboto") +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+#-----------------------------------------------------------------
+# Examining points per game
+team_ppg <- pbpdata_small %>%
+  filter(!is.na(passer_player_id)) %>%
+  group_by(season, posteam, game_id) %>%
+  summarise(team_points = max(home_score * (home_team == posteam) + away_score * (away_team == posteam)),
+            .groups = "drop") %>%
+  group_by(season, posteam) %>%
+  summarise(ppg = mean(team_points), .groups = "drop")
+
+qb_ppg_season <- qb_summary_season %>%
+  left_join(team_ppg, by = c("season", "team" = "posteam")) %>%
+  select(season, passer_player_id, passer_player_name, team,
+         epa_per_attempt, raw_wepa_per_attempt, xwepa_per_attempt, ppg)
+
+library(ggplot2)
+library(ggimage)
+library(dplyr)
+
+qb_ppg_season <- qb_ppg_season %>%
+  left_join(team_logos, by = c("team" = "team_abbr"))
+
+qb_ppg_long <- qb_ppg_season %>%
+  pivot_longer(
+    cols = c(epa_per_attempt, raw_wepa_per_attempt, xwepa_per_attempt),
+    names_to = "stat",
+    values_to = "value"
+  )
+
+install.packages("ggpubr")
+library(ggpubr)
+
+stat_labels <- c(
+  epa_per_attempt = "EPA",
+  raw_wepa_per_attempt = "Raw WEPA",
+  xwepa_per_attempt = "xWEPA"
+)
+
+ggplot(qb_ppg_long, aes(x = value, y = ppg, image = logo)) +
+  geom_image(size = 0.05) +
+  geom_smooth(aes(group = 1), method = "lm", se = FALSE, color = "black", linetype = "dotted") +
+  facet_wrap(~stat, scales = "free_x", labeller = labeller(stat = stat_labels)) +
+  labs(
+    x = "Stat per Attempt",
+    y = "Team PPG",
+    title = "Relationships between QB Stat per Attempt and Team PPG"
+  ) +
+  theme_minimal(base_family = "Roboto") +
+  theme(
+    strip.text = element_text(face = "bold"),
+    plot.title = element_text(hjust = 0.5)
+  )
