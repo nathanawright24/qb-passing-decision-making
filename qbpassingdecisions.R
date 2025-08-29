@@ -719,44 +719,61 @@ ggsave(
 )
 
 #------------------------------------------------------------
-library(sportyR)
-library(dplyr)
-library(ggplot2)
-
+install.packages("png")
+library(png)
+library(grid)
 lamar_cpoe <- cpoe_summary %>%
-  filter(passer_player_name == "L.Jackson", defense_coverage_type == "Cover 3") %>%
+  filter(passer_player_name == "L.Jackson", defense_coverage_type == "COVER_3") %>%
   group_by(pass_location, depth_bucket) %>%
   summarise(CPOE = mean(qb_cpoe, na.rm = TRUE), attempts = n(), .groups = "drop")
 
-library(ggplot2)
-library(dplyr)
-
 lamar_cpoe <- lamar_cpoe %>%
   mutate(
-    x = case_when(
-      pass_location == "Left" ~ 20,
-      pass_location == "Middle" ~ 60,
-      pass_location == "Right" ~ 100
+    pass_location = case_when(
+      pass_location == "left" ~ "Left",
+      pass_location == "middle" ~ "Middle",
+      pass_location == "right" ~ "Right"
     ),
-    y = case_when(
-      depth_bucket == "Shallow" ~ 10,
-      depth_bucket == "Intermediate" ~ 27,
-      depth_bucket == "Deep" ~ 45
+    depth_bucket = case_when(
+      depth_bucket == "short" ~ "Shallow",
+      depth_bucket == "behind" ~ "Behind",
+      depth_bucket == "intermediate" ~ "Intermediate",
+      depth_bucket == "deep" ~ "Deep"
     )
+  ) %>%
+  mutate(
+    pass_location = factor(pass_location, levels = c("Left", "Middle", "Right")),
+    depth_bucket = factor(depth_bucket, levels = c("Deep", "Intermediate", "Behind", "Shallow"))
   )
 
-p <- ggplot(lamar_cpoe, aes(x = x, y = y, fill = CPOE)) +
-  geom_tile(width = 15, height = 15, color = NA, alpha = 0.7) +
-  scale_fill_gradient2(low = "red", mid = "white", high = "green", midpoint = 0) +
-  theme_void() + 
+# Load headshot
+lamar_headshot_file <- "C:/Users/NathanielWright/OneDrive - IMG Academy/Documents/Projects/Football/lamarheadshot.png"
+headshot_img <- readPNG(lamar_headshot_file)
+g <- rasterGrob(headshot_img, width = unit(0.1, "npc"), height = unit(0.1, "npc"))
+
+p <- ggplot(lamar_cpoe, aes(x = pass_location, y = depth_bucket, fill = CPOE)) +
+  geom_tile(color = "white", size = 0.5) +
+  geom_text(aes(label = paste0(round(CPOE*100, 1), "%")), size = 5, alpha = 0.6) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  labs(
+    title = "Lamar Jackson CPOE vs Cover 3",
+    x = "Pass Location",
+    y = "Depth Bucket",
+    fill = "CPOE"
+  ) +
+  theme_minimal(base_size = 14) +
   theme(
-    panel.background = element_rect(fill = "transparent", color = NA),
     plot.background = element_rect(fill = "transparent", color = NA),
-    legend.background = element_rect(fill = "transparent", color = NA),
-    legend.key = element_rect(fill = "transparent", color = NA)
-  )
+    panel.background = element_rect(fill = "transparent", color = NA),
+    legend.position = "right",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.05)
+  ) +
+  annotation_custom(g, xmin = -0.7, xmax = -0.2, ymin = 3.5, ymax = 4.5)
 
-ggsave("lamar_heatmap.png", p, bg = "transparent", width = 6, height = 3.5, dpi = 300)
+ggsave("lamar_heatmap.png", p, bg = "transparent", width = 6, height = 4, dpi = 300)
+
+p
+ggsave("lamar_heatmap.png", p, bg = "transparent", width = 6, height = 4, dpi = 300)
 
 #----------------------------------------------
 #-------------- Stress Testing ----------------
@@ -1075,3 +1092,94 @@ ggplot(qb_ppg_long, aes(x = value, y = ppg, image = logo)) +
     strip.text = element_text(face = "bold"),
     plot.title = element_text(hjust = 0.5)
   )
+
+#-------------------------------------------------
+# Stat Stickiness
+library(dplyr)
+library(ggplot2)
+library(reshape2)
+library(ggplot2)
+library(dplyr)
+
+qb_variance <- passes_qbxcp %>%
+  group_by(season, passer_player_id, passer_player_name) %>%
+  summarise(
+    sd_epa = sd(epa, na.rm = TRUE),
+    sd_raw_wepa = sd(epa * qbxcp, na.rm = TRUE),
+    sd_xwepa = sd(xepa * qbxcp, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  pivot_longer(
+    cols = starts_with("sd_"),
+    names_to = "stat",
+    values_to = "sd_value"
+  ) %>%
+  mutate(stat = recode(stat,
+                       "sd_epa" = "EPA",
+                       "sd_raw_wepa" = "Raw WEPA",
+                       "sd_xwepa" = "xWEPA"))
+
+set.seed(42)
+qb_variance_sample <- qb_variance %>%
+  group_by(stat) %>%
+  slice_sample(n = 50)  # show 50 points per stat for visualization
+
+ggplot(qb_variance, aes(x = stat, y = sd_value, fill = stat)) +
+  geom_violin(alpha = 0.6, color = NA) +
+  geom_boxplot(width = 0.15, outlier.shape = NA, fill = "white", alpha = 0.6) +
+  geom_jitter(data = qb_variance_sample, width = 0.15, alpha = 0.5, size = 2, color = "black") +
+  scale_fill_manual(values = c("EPA" = "#1f77b4", "Raw WEPA" = "#ff7f0e", "xWEPA" = "#2ca02c")) +
+  labs(
+    title = "Game-to-Game Variance of QB Stats per Attempt",
+    x = "",
+    y = "Standard Deviation"
+  ) +
+  theme_minimal(base_family = "Roboto") +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14)
+  )
+
+#----------------------------------------
+# Filter for key plays (e.g., top 10% WPA magnitude)
+key_plays <- passes_qbxcp %>%
+  filter(!is.na(wpa), abs(wpa) >= quantile(abs(wpa), 0.9, na.rm = TRUE)) %>%
+  mutate(xwepa_value = xepa * qbxcp)
+
+# Aggregate per QB
+qb_wpa <- key_plays %>%
+  group_by(season, passer_player_id, passer_player_name) %>%
+  summarise(
+    total_key_wpa = sum(wpa, na.rm = TRUE),
+    total_key_xwepa = sum(xwepa_value, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+install.packages("ggpmisc")
+library(ggpmisc)
+
+lm_key <- lm(total_key_wpa ~ total_key_xwepa, data = qb_wpa)
+r2_val <- summary(lm_key)$r.squared
+
+ggplot(qb_wpa, aes(x = total_key_xwepa, y = total_key_wpa)) +
+  geom_point(color = "#2ca02c", size = 3, alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed", color = "black") +
+  annotate(
+    "text",
+    x = min(qb_wpa$total_key_xwepa, na.rm = TRUE),
+    y = max(qb_wpa$total_key_wpa, na.rm = TRUE),
+    label = paste0("R² = ", signif(r2_val, 3)),
+    hjust = 0,
+    vjust = 1,
+    size = 5,
+    family = "Roboto"
+  ) +
+  labs(
+    title = "QB xWEPA vs. Win Probability Added on High-Leverage Plays",
+    x = "Total xWEPA (Key Plays)",
+    y = "Total WPA (Key Plays)"
+  ) +
+  theme_minimal(base_family = "Roboto") +
+  theme(plot.title = element_text(hjust = 0.5))
